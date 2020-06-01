@@ -9,13 +9,13 @@ class App extends Component{
   constructor() {
     super()
     this.state = {
-        messages: [],
-        isLoggedIn: false,
-        users: []
+        messages: [],//will store the message
+        isLoggedIn: false,//to know if user is loggin
+        users: [],// to store the users list (to display)
+        nick: ''//the nickname of the user
     }
     this.login = this.login.bind(this)
     this.send = this.send.bind(this)
-    this.findUser = this.findUser.bind(this)
   }
 
   componentDidMount(){
@@ -29,7 +29,8 @@ class App extends Component{
     socket.on('loggedIn',()=>{
       this.setState(() => {
         return {
-          isLoggedIn: true
+          isLoggedIn: true,
+          messages: []
         }
     })
     });
@@ -53,23 +54,15 @@ class App extends Component{
   };
 
   login(nickname){
-    alert("send login")
+    this.setState(() => {
+      return {
+          nick: nickname
+      }
+    })
     socket.emit('login',nickname);
   }
 
-  findUser(id){
-    var nick= "";
-    this.state.users.map(user=>{
-      let to = String(id).localeCompare(String(user.id));
-      if(to === 0){
-        nick = user.nick+ " : "
-      }
-    })
-    return nick
-  }
-
   send=(message)=>{
-    alert("send")
     socket.emit('message',message);
   }
 
@@ -78,6 +71,7 @@ class App extends Component{
     let form;
     if (isLoggedIn) {
           form = <div id="container">
+                  <h2>You are : {this.state.nick}</h2>
                     <div id="userList">
                       <h2>users</h2>
                         <ul>
@@ -88,7 +82,7 @@ class App extends Component{
                     <h2>Messages</h2>
                       <ul>
                             {this.state.messages.map(m=>
-                              <li><strong>{this.findUser(m.id)}</strong>{m.message}</li>
+                              <li><strong>{m.nickname}</strong>{m.message}</li>
                             )}
                       </ul>  
                   <Form id="footer" send={this.send}/>
