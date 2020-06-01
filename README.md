@@ -20,7 +20,7 @@ socket.emit('loggedIn',"you are logged in");
 socket.broadcast.emit('NotifMessage', message)
 ````
 
-Finally, we emit the global users udapted to all users (to update the user list logged in)
+* Finally, we emit the global users udapted to all users (to update the user list logged in)
 ````
 server.emit("users",users);
 ````
@@ -50,7 +50,8 @@ var users = [];//We define a global user array for users
 
 Now, we can update our client side to test our server.
 ### Client side
-First, we create a form component, which will ask to enter a username. In our component, this component is called *Authentication* (I won't describe it since it's basic), then, in our *App.js* file, we updte our state component as following (we work with class components) :
+First, we create a form component, which will ask to enter a username. In our project, this component is called *Authentication.js* (I won't describe it since it's basic).  
+Then, in our *App.js* file, we update our state component as following (we work with class components) :
 ````
 this.state = {
         messages: [],//will store the message
@@ -59,7 +60,7 @@ this.state = {
         nick: ''//the nickname of the user
     }
 ````
-As you can see, we add **isLoggenIn** flag, which will be used later with conditonal rendering, we also add a **users** array, where we'll store the users list emit from the server, and a **nick**, which is not really necesarry(I add it for the test).  
+As you can see, we add **isLoggenIn** flag, which will be used for conditonal rendering, we also add a **users** array, where we'll store the users list emit from the server, finally we add a **nick** flag, which is not really necesarry(I add it for the tests, to know who is who).  
 Next, we define the *login()* function, which will send to the server the nickname entered by the user.
 ````
 login(nickname){
@@ -68,10 +69,10 @@ login(nickname){
           nick: nickname
       }
     })
-    socket.emit('login',nickname);
+    socket.emit('login',nickname);//Here send the nickame to server
   }
 ````
-Next, in our *componentDidMount()*, we add event listeners for each event we defined in the server side. For each event, we update the state component. It should look as following.
+Next, in our *componentDidMount()*, we add event listeners for each event we defined in the server side. For each event, we'll update the state component. It should look as following.
 ````
  componentDidMount(){
     socket.on('message',data=>{
@@ -108,11 +109,46 @@ Next, in our *componentDidMount()*, we add event listeners for each event we def
 
   };
  ````
+Finally, we use **isLoggenIn** with conditonal rendering for the user interface. If the user isn't logged in, he/she will have the authentification form to complete, else, we display the messages list, the users list and a form to send message in the chat. 
+ ```` 
+ render(){
+    const isLoggedIn = this.state.isLoggedIn;
+    let form;
+    if (isLoggedIn) {
+          form = <div id="container">
+                  <h2>You are : {this.state.nick}</h2>
+                    <div id="userList">
+                      <h2>users</h2>
+                        <ul>
+                            {this.state.users.map(user=><li>{user.nick}</li>)}
+                        </ul>
+                    </div>
+                    <div id="messages">
+                    <h2>Messages</h2>
+                      <ul>
+                            {this.state.messages.map(m=>
+                              <li><strong>{m.nickname}</strong>{m.message}</li>
+                            )}
+                      </ul>  
+                  <Form id="footer" send={this.send}/>
+                  </div>
+          </div>;
+        } 
+    else {
+          form = <Authentication login={this.login} />;
+      }
+    return(
+      <div>
+        {form}
+      </div>
+    );
+  }
+   ````
  
 ## Logout part
-Now that we have seen how to loggin, we will define an event listener for when the user logout (when he close his/her tab/browser). For this purpose, we won't need to update something in the client side, we'll only work on the server side.
+Now that we have seen how to loggin, we will define an event listener for when the user log out (when he close his/her tab/browser). For this purpose, we won't need to update something in the client side, we'll only work on the server side.
 ### Server side
-As previously, we define an 'logout' event listener, in this event we will first define a notification message, then we'll remove the user from the global users arrays by using the *socket.id*. 
+As previously, we define an 'logout' event listener. In this event we will first define a notification message, then we'll remove the user from the global users arrays by using the *socket.id*. 
 Finally, we'll send the notification message and the updated global users array to all users logged in the chat.  
 It should look as following :
  ````
@@ -125,7 +161,7 @@ It should look as following :
             message: ''
         }
         let NotifMessage = " has left the chat ==>[]"
-        users.map(user=>{
+        users.map(user=>{//here is the method to find the user we'll delete in the array
             let compare = String(socket.id).localeCompare(String(user.id));
             if(compare === 0){
             index=counter;
@@ -133,14 +169,36 @@ It should look as following :
             }
             counter++;
         })
-        users.splice(index,1);
+        users.splice(index,1);//here we delete the user
         server.emit('NotifMessage',message);
         server.emit("users",users);
     });
  ````
+ 
+ ## Send message
+  Well, now that the user has a nickname, we want to add it before his message. For this, we'll only work the server side (we maybe you notify we already display the nickname in the *app.js* file.
+ ### Server side
+We update our event listener as following : First we add a **nick** variable, then we will look for the nickanme in the users array thanks to the id's sockets, then we set an message object with the message and the nickname. Finally, we send the message to the client side(as before).
+````
+   //when a user send a message
+    socket.on('message',(message)=>{
+        let nick="";
+        users.map(user=>{
+            let to = String(socket.id).localeCompare(String(user.id));
+            if(to === 0){
+            nick = user.nick+ " : "
+            }
+        })
+        const messageWithId ={
+            nickname: nick,
+            message: message
+        }
+        server.emit('message',messageWithId);
+    });
+   ````
  ## Problems met
  
- I met a problem to add username before each message. The probem was the following : when the user logout (by closing the tab or browser), the username before each of his message disppeared. Here an example.
+ I met a problem in the step to add username before each message. The probem was the following : when the user logout (by closing the tab or browser), the username before each of his message disppeared. Here an example.
  ````
  test : Hi toto!
  toto has left the chat ==>[]
@@ -160,7 +218,7 @@ The problem was quite simple, for each message object, I had defined an **id** f
  
  ## Conclusion
  
-Well, I am happy since I have no idea how worked the Real time web applications, then now everything is clearer in my mind. I already hear about this subject before, but I never found the courage to do some search about it. And I believe it was complicated, but in reality, it's quite easy to work with the socket.  
+Well, I am happy since I had no idea how worked the Real time web applications, then now everything is clearer in my mind. I already hear about this subject before, but I never found the courage to do some search about it. And I believe it was complicated, but in reality, it's quite easy to work with the socket.  
 
 I thank my teacher, sir Piernik, for this exercice and new skills acquired.
  
